@@ -3,6 +3,10 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { 
+  Sidebar, Topbar, ConsoleView, FilesView, DatabasesView, 
+  SchedulesView, UsersView, StartupView, AuditView 
+} from './components';
+import { 
   Terminal as TerminalIcon, Shield, Globe, Cpu, Activity, Upload, Lock, 
   Terminal as TermIcon, Search, Command as CmdIcon, Settings, X, Folder, 
   File, ChevronRight, ChevronLeft, HardDrive, FilePlus, FolderPlus, 
@@ -12,6 +16,7 @@ import {
   Scissors, Edit2, Package, Clipboard, Download, Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { DOCKER_IMAGES } from './config/dockerImages';
 
 const COMMON_COMMANDS = [
   'ls', 'cd', 'cat', 'mkdir', 'rm', 'cp', 'mv', 'nano', 'vim', 'python3', 
@@ -2112,9 +2117,12 @@ export default function App() {
   const [config, setConfig] = useState<any>({
     startupCommand: "npm start",
     dockerImage: "ghcr.io/pterodactyl/yolks:node_20",
-    envVars: []
+    envVars: [],
+    autoStartCommand: true
   });
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [isExecutingStartup, setIsExecutingStartup] = useState(false);
+  const [startupExecutionLog, setStartupExecutionLog] = useState<string[]>([]);
   const [shell, setShell] = useState<string>('/bin/bash');
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -2185,12 +2193,53 @@ export default function App() {
     }
   };
 
+  const executeStartupCommand = async () => {
+    if (!config.autoStartCommand || !config.startupCommand) return;
+    
+    setIsExecutingStartup(true);
+    setStartupExecutionLog([`[${new Date().toLocaleTimeString()}] Executing startup command...`]);
+    
+    try {
+      const res = await fetch('/api/server/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          command: config.startupCommand,
+          dockerImage: config.dockerImage,
+          envVars: config.envVars
+        })
+      });
+      
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.json();
+      
+      setStartupExecutionLog(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] Command executed successfully`,
+        `[${new Date().toLocaleTimeString()}] Output: ${data.output || 'Command completed'}`
+      ]);
+    } catch (e) {
+      console.error("Failed to execute startup command", e);
+      setStartupExecutionLog(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] Error: ${e instanceof Error ? e.message : 'Unknown error'}`
+      ]);
+    } finally {
+      setIsExecutingStartup(false);
+    }
+  };
+
   const handleServerAction = async (action: 'start' | 'stop' | 'restart') => {
     try {
       const res = await fetch('/api/server/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ 
+          action,
+          startupCommand: config.startupCommand,
+          dockerImage: config.dockerImage,
+          autoExecute: config.autoStartCommand
+        })
       });
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const contentType = res.headers.get("content-type");
@@ -2199,6 +2248,12 @@ export default function App() {
       }
       const data = await res.json();
       setServerStatus(data.status);
+      
+      // Auto-execute startup command if enabled and action is start/restart
+      if (config.autoStartCommand && (action === 'start' || action === 'restart')) {
+        setTimeout(() => executeStartupCommand(), 1500);
+      }
+      
       // Refresh status after a delay to show transitions
       setTimeout(fetchStatus, 2500);
     } catch (e) {
@@ -2401,188 +2456,21 @@ export default function App() {
   return (
     <div className="fixed inset-0 bg-[#0d0e12] text-[#d4d4d4] font-sans selection:bg-blue-500/30 selection:text-white overflow-hidden flex flex-col lg:flex-row">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-20 bg-[#101116] border-r border-zinc-800/50 flex flex-col items-center py-6 shrink-0 z-50">
-        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20 mb-10">
-          <Server size={24} className="text-white" />
-        </div>
-
-        <nav className="flex-1 flex flex-col space-y-4">
-          <button 
-            onClick={() => setView('console')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'console' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <TerminalIcon size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Console</span>
-          </button>
-          <button 
-            onClick={() => setView('audit')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'audit' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <Clock size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Audit Logs</span>
-          </button>
-
-          <button 
-            onClick={() => setView('files')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'files' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <Folder size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">File Manager</span>
-          </button>
-          <button 
-            onClick={() => setView('databases')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'databases' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <Database size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Databases</span>
-          </button>
-          <button 
-            onClick={() => setView('schedules')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'schedules' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <Calendar size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Schedules</span>
-          </button>
-          <button 
-            onClick={() => setView('users')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'users' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <Users size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Users</span>
-          </button>
-          <button 
-            onClick={() => setView('startup')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'startup' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <Rocket size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Startup</span>
-          </button>
-        </nav>
-
-        <div className="mt-auto flex flex-col space-y-4">
-          <button 
-            onClick={() => setIsSettingsOpen(true)}
-            className="p-3 text-zinc-500 hover:text-white hover:bg-zinc-800/50 rounded-xl transition-all duration-200 group relative"
-          >
-            <Settings size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Settings</span>
-          </button>
-          <button className="p-3 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all duration-200 group relative">
-            <ExternalLink size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Logout</span>
-          </button>
-        </div>
-      </aside>
+      <Sidebar view={view} setView={setView} onSettingsClick={() => setIsSettingsOpen(true)} />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Top Header */}
-        <header className="h-14 sm:h-16 bg-[#101116] border-b border-zinc-800/50 flex items-center justify-between px-4 sm:px-10 shrink-0 z-40">
-          <div className="flex items-center space-x-3 sm:space-x-4">
-            <div className="lg:hidden w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
-              <Server size={16} className="text-white" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center space-x-3">
-                <h1 className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider">OJICMNTY</h1>
-                <div className="h-3 w-px bg-zinc-800" />
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(publicIP);
-                    alert('IP copied to clipboard!');
-                  }}
-                  className="flex items-center space-x-2 px-2 py-0.5 bg-zinc-800/50 hover:bg-zinc-800 rounded text-[9px] font-mono text-zinc-400 hover:text-white transition-all group"
-                >
-                  <span>{publicIP}</span>
-                  <Copy size={10} className="text-zinc-600 group-hover:text-blue-400 transition-colors" />
-                </button>
-              </div>
-              <div className="flex items-center space-x-1.5 mt-1">
-                <div className={`w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] ${
-                  serverStatus === 'running' ? 'bg-emerald-500 animate-pulse' : 
-                  serverStatus === 'offline' ? 'bg-red-500' : 'bg-yellow-500 animate-bounce'
-                }`} />
-                <span className="text-[8px] sm:text-[9px] text-zinc-500 uppercase tracking-widest font-bold">
-                  {serverStatus === 'running' ? 'Server Online' : 
-                   serverStatus === 'offline' ? 'Server Offline' : 
-                   serverStatus === 'starting' ? 'Server Starting...' : 'Server Stopping...'}
-                </span>
-              </div>
-            </div>
-            <div className="h-5 w-px bg-zinc-800 mx-1 sm:mx-2 hidden sm:block" />
-            <div className="hidden sm:flex items-center space-x-2 text-[10px] sm:text-[11px] text-zinc-400 font-mono">
-              <span className="hover:text-white cursor-pointer transition-colors">Server</span>
-              <ChevronRight size={10} className="text-zinc-600" />
-              <span className="text-white capitalize">{view}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            <div className="hidden xl:flex items-center space-x-6 mr-6">
-              <div className="flex flex-col items-end">
-                <span className="text-[8px] text-zinc-500 uppercase tracking-widest">Public IP</span>
-                <span className="text-[10px] font-mono text-zinc-300">{publicIP}</span>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="text-[8px] text-zinc-500 uppercase tracking-widest">Uptime</span>
-                <span className="text-[10px] font-mono text-zinc-300">{formatUptime(stats.uptime)}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              <button 
-                onClick={() => handleServerAction('start')}
-                disabled={serverStatus !== 'offline'}
-                className={`p-1.5 sm:p-2 border rounded-lg transition-all ${
-                  serverStatus === 'offline' 
-                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20' 
-                    : 'bg-zinc-800/50 text-zinc-600 border-zinc-700 cursor-not-allowed'
-                }`} 
-                title="Start"
-              >
-                <Power size={14} className="sm:w-4 sm:h-4" />
-              </button>
-              <button 
-                onClick={() => handleServerAction('restart')}
-                disabled={serverStatus !== 'running'}
-                className={`p-1.5 sm:p-2 border rounded-lg transition-all ${
-                  serverStatus === 'running' 
-                    ? 'bg-blue-500/10 text-blue-500 border-blue-500/20 hover:bg-blue-500/20' 
-                    : 'bg-zinc-800/50 text-zinc-600 border-zinc-700 cursor-not-allowed'
-                }`} 
-                title="Restart"
-              >
-                <RefreshCw size={14} className="sm:w-4 sm:h-4" />
-              </button>
-              <button 
-                onClick={() => handleServerAction('stop')}
-                disabled={serverStatus !== 'running'}
-                className={`p-1.5 sm:p-2 border rounded-lg transition-all ${
-                  serverStatus === 'running' 
-                    ? 'bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20' 
-                    : 'bg-zinc-800/50 text-zinc-600 border-zinc-700 cursor-not-allowed'
-                }`} 
-                title="Stop"
-              >
-                <Square size={14} className="sm:w-4 sm:h-4" />
-              </button>
-            </div>
-          </div>
-        </header>
+        <Topbar 
+          publicIP={publicIP}
+          serverStatus={serverStatus}
+          view={view}
+          uptime={stats.uptime}
+          onServerAction={handleServerAction}
+          dockerImage={config.dockerImage}
+          startupCommand={config.startupCommand}
+          autoStartCommand={config.autoStartCommand}
+        />
 
         {/* View Content */}
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-10 pb-24 lg:pb-10">
@@ -2928,15 +2816,31 @@ export default function App() {
                           onChange={(e) => setConfig({ ...config, dockerImage: e.target.value })}
                           className="w-full bg-black/40 border border-zinc-800 rounded-lg px-4 py-3 text-[10px] sm:text-[11px] text-zinc-300 outline-none focus:border-blue-500/50 transition-all cursor-pointer"
                         >
-                          <option value="ghcr.io/pterodactyl/yolks:node_20">Node.js 20 (ghcr.io/pterodactyl/yolks:node_20)</option>
-                          <option value="ghcr.io/pterodactyl/yolks:node_18">Node.js 18 (ghcr.io/pterodactyl/yolks:node_18)</option>
-                          <option value="ghcr.io/pterodactyl/yolks:python_3.11">Python 3.11 (ghcr.io/pterodactyl/yolks:python_3.11)</option>
-                          <option value="ghcr.io/pterodactyl/yolks:java_17">Java 17 (ghcr.io/pterodactyl/yolks:java_17)</option>
-                          <option value="ghcr.io/pterodactyl/yolks:debian">Debian (ghcr.io/pterodactyl/yolks:debian)</option>
+                          <optgroup label="Runtime Environments">
+                            {DOCKER_IMAGES.filter(img => img.category === 'runtime').map(img => (
+                              <option key={img.id} value={img.name}>{img.displayName}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Game Servers">
+                            {DOCKER_IMAGES.filter(img => img.category === 'game-server').map(img => (
+                              <option key={img.id} value={img.name}>{img.displayName}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Databases">
+                            {DOCKER_IMAGES.filter(img => img.category === 'database').map(img => (
+                              <option key={img.id} value={img.name}>{img.displayName}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Utilities">
+                            {DOCKER_IMAGES.filter(img => img.category === 'utility').map(img => (
+                              <option key={img.id} value={img.name}>{img.displayName}</option>
+                            ))}
+                          </optgroup>
                         </select>
-                        <div className="flex items-center gap-2 text-[9px] text-zinc-600 italic">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          <span>Image is verified and ready for deployment.</span>
+                        <div className="text-[9px] text-zinc-600 italic bg-zinc-900/50 border border-zinc-800/30 rounded px-3 py-2">
+                          <p>
+                            {DOCKER_IMAGES.find(img => img.name === config.dockerImage)?.description || 'Select a Docker image to see details'}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -3002,6 +2906,69 @@ export default function App() {
                         </div>
                       )}
                     </div>
+                  </div>
+                  
+                  {/* Auto-Execution Controls */}
+                  <div className="space-y-6">
+                    <div className="bg-[#101116] border border-zinc-800/50 rounded-xl p-4 sm:p-6">
+                      <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Auto-Execution</h3>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-black/20 rounded-lg border border-zinc-800/50">
+                          <div>
+                            <p className="text-[10px] font-medium text-white">Auto-Execute Startup Command</p>
+                            <p className="text-[9px] text-zinc-600 mt-1">Automatically run startup command when server starts</p>
+                          </div>
+                          <label className="flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox"
+                              checked={config.autoStartCommand}
+                              onChange={(e) => setConfig({ ...config, autoStartCommand: e.target.checked })}
+                              className="w-4 h-4 rounded accent-blue-500"
+                            />
+                          </label>
+                        </div>
+                        
+                        {config.autoStartCommand && (
+                          <button
+                            onClick={executeStartupCommand}
+                            disabled={isExecutingStartup}
+                            className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-900 disabled:opacity-50 text-white text-[11px] font-bold uppercase tracking-widest rounded-lg transition-colors flex items-center justify-center gap-2"
+                          >
+                            {isExecutingStartup ? (
+                              <>
+                                <RefreshCw size={14} className="animate-spin" />
+                                Executing...
+                              </>
+                            ) : (
+                              <>
+                                <Play size={14} />
+                                Test Execute Now
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Execution Log */}
+                    {startupExecutionLog.length > 0 && (
+                      <div className="bg-[#101116] border border-zinc-800/50 rounded-xl p-4 sm:p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Execution Log</h3>
+                          <button
+                            onClick={() => setStartupExecutionLog([])}
+                            className="text-[9px] text-zinc-600 hover:text-zinc-400 transition-colors"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="bg-black/40 border border-zinc-800/50 rounded-lg p-3 font-mono text-[9px] text-zinc-400 max-h-[200px] overflow-y-auto custom-scrollbar space-y-1">
+                          {startupExecutionLog.map((log, idx) => (
+                            <div key={idx} className="text-zinc-500">{log}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
