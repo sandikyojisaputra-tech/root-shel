@@ -3,6 +3,10 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { 
+  Sidebar, Topbar, ConsoleView, FilesView, DatabasesView, 
+  SchedulesView, UsersView, StartupView, AuditView 
+} from './components';
+import { 
   Terminal as TerminalIcon, Shield, Globe, Cpu, Activity, Upload, Lock, 
   Terminal as TermIcon, Search, Command as CmdIcon, Settings, X, Folder, 
   File, ChevronRight, ChevronLeft, HardDrive, FilePlus, FolderPlus, 
@@ -2401,188 +2405,18 @@ export default function App() {
   return (
     <div className="fixed inset-0 bg-[#0d0e12] text-[#d4d4d4] font-sans selection:bg-blue-500/30 selection:text-white overflow-hidden flex flex-col lg:flex-row">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-20 bg-[#101116] border-r border-zinc-800/50 flex flex-col items-center py-6 shrink-0 z-50">
-        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20 mb-10">
-          <Server size={24} className="text-white" />
-        </div>
-
-        <nav className="flex-1 flex flex-col space-y-4">
-          <button 
-            onClick={() => setView('console')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'console' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <TerminalIcon size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Console</span>
-          </button>
-          <button 
-            onClick={() => setView('audit')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'audit' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <Clock size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Audit Logs</span>
-          </button>
-
-          <button 
-            onClick={() => setView('files')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'files' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <Folder size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">File Manager</span>
-          </button>
-          <button 
-            onClick={() => setView('databases')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'databases' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <Database size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Databases</span>
-          </button>
-          <button 
-            onClick={() => setView('schedules')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'schedules' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <Calendar size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Schedules</span>
-          </button>
-          <button 
-            onClick={() => setView('users')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'users' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <Users size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Users</span>
-          </button>
-          <button 
-            onClick={() => setView('startup')}
-            className={`p-3 rounded-xl transition-all duration-200 group relative ${
-              view === 'startup' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-            }`}
-          >
-            <Rocket size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Startup</span>
-          </button>
-        </nav>
-
-        <div className="mt-auto flex flex-col space-y-4">
-          <button 
-            onClick={() => setIsSettingsOpen(true)}
-            className="p-3 text-zinc-500 hover:text-white hover:bg-zinc-800/50 rounded-xl transition-all duration-200 group relative"
-          >
-            <Settings size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Settings</span>
-          </button>
-          <button className="p-3 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all duration-200 group relative">
-            <ExternalLink size={20} />
-            <span className="absolute left-full ml-4 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">Logout</span>
-          </button>
-        </div>
-      </aside>
+      <Sidebar view={view} setView={setView} onSettingsClick={() => setIsSettingsOpen(true)} />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Top Header */}
-        <header className="h-14 sm:h-16 bg-[#101116] border-b border-zinc-800/50 flex items-center justify-between px-4 sm:px-10 shrink-0 z-40">
-          <div className="flex items-center space-x-3 sm:space-x-4">
-            <div className="lg:hidden w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
-              <Server size={16} className="text-white" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center space-x-3">
-                <h1 className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-wider">OJICMNTY</h1>
-                <div className="h-3 w-px bg-zinc-800" />
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(publicIP);
-                    alert('IP copied to clipboard!');
-                  }}
-                  className="flex items-center space-x-2 px-2 py-0.5 bg-zinc-800/50 hover:bg-zinc-800 rounded text-[9px] font-mono text-zinc-400 hover:text-white transition-all group"
-                >
-                  <span>{publicIP}</span>
-                  <Copy size={10} className="text-zinc-600 group-hover:text-blue-400 transition-colors" />
-                </button>
-              </div>
-              <div className="flex items-center space-x-1.5 mt-1">
-                <div className={`w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] ${
-                  serverStatus === 'running' ? 'bg-emerald-500 animate-pulse' : 
-                  serverStatus === 'offline' ? 'bg-red-500' : 'bg-yellow-500 animate-bounce'
-                }`} />
-                <span className="text-[8px] sm:text-[9px] text-zinc-500 uppercase tracking-widest font-bold">
-                  {serverStatus === 'running' ? 'Server Online' : 
-                   serverStatus === 'offline' ? 'Server Offline' : 
-                   serverStatus === 'starting' ? 'Server Starting...' : 'Server Stopping...'}
-                </span>
-              </div>
-            </div>
-            <div className="h-5 w-px bg-zinc-800 mx-1 sm:mx-2 hidden sm:block" />
-            <div className="hidden sm:flex items-center space-x-2 text-[10px] sm:text-[11px] text-zinc-400 font-mono">
-              <span className="hover:text-white cursor-pointer transition-colors">Server</span>
-              <ChevronRight size={10} className="text-zinc-600" />
-              <span className="text-white capitalize">{view}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            <div className="hidden xl:flex items-center space-x-6 mr-6">
-              <div className="flex flex-col items-end">
-                <span className="text-[8px] text-zinc-500 uppercase tracking-widest">Public IP</span>
-                <span className="text-[10px] font-mono text-zinc-300">{publicIP}</span>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="text-[8px] text-zinc-500 uppercase tracking-widest">Uptime</span>
-                <span className="text-[10px] font-mono text-zinc-300">{formatUptime(stats.uptime)}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              <button 
-                onClick={() => handleServerAction('start')}
-                disabled={serverStatus !== 'offline'}
-                className={`p-1.5 sm:p-2 border rounded-lg transition-all ${
-                  serverStatus === 'offline' 
-                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20' 
-                    : 'bg-zinc-800/50 text-zinc-600 border-zinc-700 cursor-not-allowed'
-                }`} 
-                title="Start"
-              >
-                <Power size={14} className="sm:w-4 sm:h-4" />
-              </button>
-              <button 
-                onClick={() => handleServerAction('restart')}
-                disabled={serverStatus !== 'running'}
-                className={`p-1.5 sm:p-2 border rounded-lg transition-all ${
-                  serverStatus === 'running' 
-                    ? 'bg-blue-500/10 text-blue-500 border-blue-500/20 hover:bg-blue-500/20' 
-                    : 'bg-zinc-800/50 text-zinc-600 border-zinc-700 cursor-not-allowed'
-                }`} 
-                title="Restart"
-              >
-                <RefreshCw size={14} className="sm:w-4 sm:h-4" />
-              </button>
-              <button 
-                onClick={() => handleServerAction('stop')}
-                disabled={serverStatus !== 'running'}
-                className={`p-1.5 sm:p-2 border rounded-lg transition-all ${
-                  serverStatus === 'running' 
-                    ? 'bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20' 
-                    : 'bg-zinc-800/50 text-zinc-600 border-zinc-700 cursor-not-allowed'
-                }`} 
-                title="Stop"
-              >
-                <Square size={14} className="sm:w-4 sm:h-4" />
-              </button>
-            </div>
-          </div>
-        </header>
+        <Topbar 
+          publicIP={publicIP}
+          serverStatus={serverStatus}
+          view={view}
+          uptime={stats.uptime}
+          onServerAction={handleServerAction}
+        />
 
         {/* View Content */}
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-10 pb-24 lg:pb-10">
