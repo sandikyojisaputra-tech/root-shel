@@ -16,6 +16,7 @@ import {
   Scissors, Edit2, Package, Clipboard, Download, Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { DOCKER_IMAGES } from './config/dockerImages';
 
 const COMMON_COMMANDS = [
   'ls', 'cd', 'cat', 'mkdir', 'rm', 'cp', 'mv', 'nano', 'vim', 'python3', 
@@ -2116,9 +2117,12 @@ export default function App() {
   const [config, setConfig] = useState<any>({
     startupCommand: "npm start",
     dockerImage: "ghcr.io/pterodactyl/yolks:node_20",
-    envVars: []
+    envVars: [],
+    autoStartCommand: true
   });
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [isExecutingStartup, setIsExecutingStartup] = useState(false);
+  const [startupExecutionLog, setStartupExecutionLog] = useState<string[]>([]);
   const [shell, setShell] = useState<string>('/bin/bash');
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -2189,12 +2193,53 @@ export default function App() {
     }
   };
 
+  const executeStartupCommand = async () => {
+    if (!config.autoStartCommand || !config.startupCommand) return;
+    
+    setIsExecutingStartup(true);
+    setStartupExecutionLog([`[${new Date().toLocaleTimeString()}] Executing startup command...`]);
+    
+    try {
+      const res = await fetch('/api/server/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          command: config.startupCommand,
+          dockerImage: config.dockerImage,
+          envVars: config.envVars
+        })
+      });
+      
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.json();
+      
+      setStartupExecutionLog(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] Command executed successfully`,
+        `[${new Date().toLocaleTimeString()}] Output: ${data.output || 'Command completed'}`
+      ]);
+    } catch (e) {
+      console.error("Failed to execute startup command", e);
+      setStartupExecutionLog(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] Error: ${e instanceof Error ? e.message : 'Unknown error'}`
+      ]);
+    } finally {
+      setIsExecutingStartup(false);
+    }
+  };
+
   const handleServerAction = async (action: 'start' | 'stop' | 'restart') => {
     try {
       const res = await fetch('/api/server/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ 
+          action,
+          startupCommand: config.startupCommand,
+          dockerImage: config.dockerImage,
+          autoExecute: config.autoStartCommand
+        })
       });
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const contentType = res.headers.get("content-type");
@@ -2203,6 +2248,12 @@ export default function App() {
       }
       const data = await res.json();
       setServerStatus(data.status);
+      
+      // Auto-execute startup command if enabled and action is start/restart
+      if (config.autoStartCommand && (action === 'start' || action === 'restart')) {
+        setTimeout(() => executeStartupCommand(), 1500);
+      }
+      
       // Refresh status after a delay to show transitions
       setTimeout(fetchStatus, 2500);
     } catch (e) {
@@ -2416,6 +2467,9 @@ export default function App() {
           view={view}
           uptime={stats.uptime}
           onServerAction={handleServerAction}
+          dockerImage={config.dockerImage}
+          startupCommand={config.startupCommand}
+          autoStartCommand={config.autoStartCommand}
         />
 
         {/* View Content */}
@@ -2762,15 +2816,31 @@ export default function App() {
                           onChange={(e) => setConfig({ ...config, dockerImage: e.target.value })}
                           className="w-full bg-black/40 border border-zinc-800 rounded-lg px-4 py-3 text-[10px] sm:text-[11px] text-zinc-300 outline-none focus:border-blue-500/50 transition-all cursor-pointer"
                         >
-                          <option value="ghcr.io/pterodactyl/yolks:node_20">Node.js 20 (ghcr.io/pterodactyl/yolks:node_20)</option>
-                          <option value="ghcr.io/pterodactyl/yolks:node_18">Node.js 18 (ghcr.io/pterodactyl/yolks:node_18)</option>
-                          <option value="ghcr.io/pterodactyl/yolks:python_3.11">Python 3.11 (ghcr.io/pterodactyl/yolks:python_3.11)</option>
-                          <option value="ghcr.io/pterodactyl/yolks:java_17">Java 17 (ghcr.io/pterodactyl/yolks:java_17)</option>
-                          <option value="ghcr.io/pterodactyl/yolks:debian">Debian (ghcr.io/pterodactyl/yolks:debian)</option>
+                          <optgroup label="Runtime Environments">
+                            {DOCKER_IMAGES.filter(img => img.category === 'runtime').map(img => (
+                              <option key={img.id} value={img.name}>{img.displayName}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Game Servers">
+                            {DOCKER_IMAGES.filter(img => img.category === 'game-server').map(img => (
+                              <option key={img.id} value={img.name}>{img.displayName}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Databases">
+                            {DOCKER_IMAGES.filter(img => img.category === 'database').map(img => (
+                              <option key={img.id} value={img.name}>{img.displayName}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Utilities">
+                            {DOCKER_IMAGES.filter(img => img.category === 'utility').map(img => (
+                              <option key={img.id} value={img.name}>{img.displayName}</option>
+                            ))}
+                          </optgroup>
                         </select>
-                        <div className="flex items-center gap-2 text-[9px] text-zinc-600 italic">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          <span>Image is verified and ready for deployment.</span>
+                        <div className="text-[9px] text-zinc-600 italic bg-zinc-900/50 border border-zinc-800/30 rounded px-3 py-2">
+                          <p>
+                            {DOCKER_IMAGES.find(img => img.name === config.dockerImage)?.description || 'Select a Docker image to see details'}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -2836,6 +2906,69 @@ export default function App() {
                         </div>
                       )}
                     </div>
+                  </div>
+                  
+                  {/* Auto-Execution Controls */}
+                  <div className="space-y-6">
+                    <div className="bg-[#101116] border border-zinc-800/50 rounded-xl p-4 sm:p-6">
+                      <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Auto-Execution</h3>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-black/20 rounded-lg border border-zinc-800/50">
+                          <div>
+                            <p className="text-[10px] font-medium text-white">Auto-Execute Startup Command</p>
+                            <p className="text-[9px] text-zinc-600 mt-1">Automatically run startup command when server starts</p>
+                          </div>
+                          <label className="flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox"
+                              checked={config.autoStartCommand}
+                              onChange={(e) => setConfig({ ...config, autoStartCommand: e.target.checked })}
+                              className="w-4 h-4 rounded accent-blue-500"
+                            />
+                          </label>
+                        </div>
+                        
+                        {config.autoStartCommand && (
+                          <button
+                            onClick={executeStartupCommand}
+                            disabled={isExecutingStartup}
+                            className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-900 disabled:opacity-50 text-white text-[11px] font-bold uppercase tracking-widest rounded-lg transition-colors flex items-center justify-center gap-2"
+                          >
+                            {isExecutingStartup ? (
+                              <>
+                                <RefreshCw size={14} className="animate-spin" />
+                                Executing...
+                              </>
+                            ) : (
+                              <>
+                                <Play size={14} />
+                                Test Execute Now
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Execution Log */}
+                    {startupExecutionLog.length > 0 && (
+                      <div className="bg-[#101116] border border-zinc-800/50 rounded-xl p-4 sm:p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Execution Log</h3>
+                          <button
+                            onClick={() => setStartupExecutionLog([])}
+                            className="text-[9px] text-zinc-600 hover:text-zinc-400 transition-colors"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="bg-black/40 border border-zinc-800/50 rounded-lg p-3 font-mono text-[9px] text-zinc-400 max-h-[200px] overflow-y-auto custom-scrollbar space-y-1">
+                          {startupExecutionLog.map((log, idx) => (
+                            <div key={idx} className="text-zinc-500">{log}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>

@@ -7,6 +7,9 @@ interface TopbarProps {
   view: string;
   uptime: number;
   onServerAction: (action: string) => void;
+  dockerImage?: string;
+  startupCommand?: string;
+  autoStartCommand?: boolean;
 }
 
 const formatUptime = (seconds: number) => {
@@ -25,6 +28,9 @@ export const Topbar: React.FC<TopbarProps> = ({
   view,
   uptime,
   onServerAction,
+  dockerImage = 'node:lts',
+  startupCommand = 'npm start',
+  autoStartCommand = true,
 }) => {
   return (
     <header className="h-14 sm:h-16 bg-[#101116] border-b border-zinc-800/50 flex items-center justify-between px-4 sm:px-10 shrink-0 z-40">
@@ -77,6 +83,25 @@ export const Topbar: React.FC<TopbarProps> = ({
           <ChevronRight size={10} className="text-zinc-600" />
           <span className="text-white capitalize">{view}</span>
         </div>
+        
+        {/* Docker & Startup Info */}
+        {view === 'startup' && (
+          <>
+            <div className="h-5 w-px bg-zinc-800 mx-1 sm:mx-2 hidden lg:block" />
+            <div className="hidden lg:flex items-center space-x-4 text-[9px]">
+              <div className="flex flex-col items-start">
+                <span className="text-zinc-600 uppercase tracking-widest">Docker</span>
+                <span className="text-blue-400 font-mono">{dockerImage?.split('/').pop()?.split(':')[0] || 'unknown'}</span>
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="text-zinc-600 uppercase tracking-widest">Startup</span>
+                <span className={`font-mono ${autoStartCommand ? 'text-emerald-400' : 'text-yellow-600'}`}>
+                  {autoStartCommand ? 'Auto' : 'Manual'}
+                </span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Right Section */}
