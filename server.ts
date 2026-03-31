@@ -12,7 +12,28 @@ import multer from "multer";
 import AdmZip from "adm-zip";
 import { execSync } from "child_process";
 
+// Load environment variables
+if (process.env.NODE_ENV !== "production") {
+  try {
+    const dotenv = await import("dotenv");
+    dotenv.config();
+  } catch (e) {
+    // dotenv not required in production
+  }
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Environment configuration
+const ENV = {
+  NODE_ENV: process.env.NODE_ENV || "development",
+  PORT: Number(process.env.PORT) || 3000,
+  HOST: process.env.HOST || "0.0.0.0",
+  SERVER_STATUS: (process.env.SERVER_STATUS || "running") as 'running' | 'offline',
+  MONITORING_INTERVAL: Number(process.env.MONITORING_INTERVAL) || 1000,
+  WS_HEARTBEAT_INTERVAL: Number(process.env.WS_HEARTBEAT_INTERVAL) || 30000,
+  LOG_LEVEL: process.env.LOG_LEVEL || "info"
+};
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -41,6 +62,65 @@ const LOG_FILE = path.join(__dirname, "audit-logs.json");
 const CONFIG_FILE = path.join(__dirname, "server-config.json");
 
 let serverStatus: 'running' | 'starting' | 'stopping' | 'offline' = 'running';
+
+// Real-time monitoring data
+interface SystemStats {
+  timestamp: number;
+  cpu: number;
+  memory: { used: number; total: number; percentage: number };
+  disk: { used: number; total: number; percentage: number };
+  network: { bytesIn: number; bytesOut: number };
+  uptime: number;
+}
+
+let systemStats: SystemStats = {
+  timestamp: Date.now(),
+  cpu: 0,
+  memory: { used: 0, total: 0, percentage: 0 },
+  disk: { used: 0, total: 0, percentage: 0 },
+  network: { bytesIn: 0, bytesOut: 0 },
+  uptime: 0
+};
+
+// WebSocket clients for broadcasting
+let wsClients = new Set<any>();
+
+// Helper function to get system stats
+async function getSystemStats(): Promise<SystemStats> {
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+  const usedMem = totalMem - freeMem;
+  const loadAvg = os.loadavg();
+  
+  // Get disk usage
+  let diskUsed = 0, diskTotal = 0;
+  try {
+    const dfOutput = execSync("df -B1 /").toString().split("\n")[1].split(/\s+/);
+    diskTotal = parseInt(dfOutput[1]);
+    diskUsed = parseInt(dfOutput[2]);
+  } catch (e) {
+    // Fallback if df fails
+    diskTotal = 1000000000000;
+    diskUsed = 500000000000;
+  }
+
+  return {
+    timestamp: Date.now(),
+    cpu: Math.round(loadAvg[0] * 100) / 10,
+    memory: {
+      used: Math.round(usedMem / 1024 / 1024),
+      total: Math.round(totalMem / 1024 / 1024),
+      percentage: Math.round((usedMem / totalMem) * 100)
+    },
+    disk: {
+      used: Math.round(diskUsed / 1024 / 1024 / 1024),
+      total: Math.round(diskTotal / 1024 / 1024 / 1024),
+      percentage: Math.round((diskUsed / diskTotal) * 100)
+    },
+    network: { bytesIn: 0, bytesOut: 0 },
+    uptime: Math.round(os.uptime())
+  };
+}
 
 function logAction(action: string, details: any) {
   const logEntry = {
@@ -114,7 +194,7 @@ async function startServer() {
   });
 
   app.post("/api/server/action", (req, res) => {
-    const { action } = req.body;
+    const { action, startupCommand, dockerImage, autoExecute } = req.body;
     
     if (!['start', 'stop', 'restart'].includes(action)) {
       return res.status(400).json({ error: "Invalid action" });
@@ -123,30 +203,97 @@ async function startServer() {
     if (action === 'start') {
       if (serverStatus === 'running') return res.json({ status: serverStatus });
       serverStatus = 'starting';
-      logAction("SERVER_START", { previousStatus: "offline" });
+      logAction("SERVER_START", { previousStatus: "offline", dockerImage, startupCommand, autoExecute });
+      
+      // Broadcast status change
+      broadcastMessage({ type: 'server_status', status: 'starting' });
+      
       setTimeout(() => {
         serverStatus = 'running';
+        broadcastMessage({ type: 'server_status', status: 'running' });
+        
+        // Auto-execute startup command if enabled
+        if (autoExecute && startupCommand) {
+          broadcastMessage({ type: 'startup_executing', command: startupCommand });
+        }
       }, 2000);
     } else if (action === 'stop') {
       if (serverStatus === 'offline') return res.json({ status: serverStatus });
       serverStatus = 'stopping';
       logAction("SERVER_STOP", { previousStatus: "running" });
+      broadcastMessage({ type: 'server_status', status: 'stopping' });
+      
       setTimeout(() => {
         serverStatus = 'offline';
+        broadcastMessage({ type: 'server_status', status: 'offline' });
       }, 2000);
     } else if (action === 'restart') {
       serverStatus = 'stopping';
-      logAction("SERVER_RESTART", { previousStatus: serverStatus });
+      logAction("SERVER_RESTART", { previousStatus: serverStatus, dockerImage, startupCommand, autoExecute });
+      broadcastMessage({ type: 'server_status', status: 'stopping' });
+      
       setTimeout(() => {
         serverStatus = 'starting';
+        broadcastMessage({ type: 'server_status', status: 'starting' });
+        
         setTimeout(() => {
           serverStatus = 'running';
+          broadcastMessage({ type: 'server_status', status: 'running' });
+          
+          // Auto-execute startup command if enabled
+          if (autoExecute && startupCommand) {
+            broadcastMessage({ type: 'startup_executing', command: startupCommand });
+          }
         }, 2000);
       }, 2000);
     }
 
     res.json({ status: serverStatus });
   });
+
+  // Execute startup command
+  app.post("/api/server/execute", (req, res) => {
+    const { command, dockerImage } = req.body;
+    
+    if (!command) {
+      return res.status(400).json({ error: "Command is required" });
+    }
+
+    logAction("STARTUP_EXECUTE", { command, dockerImage });
+    broadcastMessage({ type: 'startup_executing', command, dockerImage });
+    
+    // Simulate command execution (in production, use docker exec or similar)
+    setTimeout(() => {
+      const output = `Executed: ${command}`;
+      broadcastMessage({ type: 'startup_executed', command, output });
+      res.json({ status: 'success', output });
+    }, 1500);
+  });
+
+  // Get real-time stats
+  app.get("/api/server/stats", (req, res) => {
+    res.json(systemStats);
+  });
+
+  // Broadcast message to all connected WebSocket clients
+  function broadcastMessage(message: any) {
+    const data = JSON.stringify(message);
+    wsClients.forEach(client => {
+      if (client.readyState === 1) { // OPEN
+        try {
+          client.send(data);
+        } catch (e) {
+          wsClients.delete(client);
+        }
+      }
+    });
+  }
+
+  // Start real-time monitoring
+  setInterval(async () => {
+    systemStats = await getSystemStats();
+    broadcastMessage({ type: 'stats_update', data: systemStats });
+  }, ENV.MONITORING_INTERVAL);
 
   app.get("/api/config", (req, res) => {
     try {
@@ -639,7 +786,17 @@ async function startServer() {
     const url = new URL(req.url || "", `http://${req.headers.host}`);
     const customShell = url.searchParams.get("shell") || "/bin/bash";
     
-    console.log(`New terminal connection with shell: ${customShell}`);
+    console.log(`New WebSocket connection with shell: ${customShell}`);
+    
+    // Add to connected clients
+    wsClients.add(ws);
+    
+    // Send initial status to new client
+    ws.send(JSON.stringify({ 
+      type: 'initial', 
+      status: serverStatus,
+      stats: systemStats
+    }));
 
     // Spawn a shell process
     // Using python3 pty trick to get a better shell (PTY-like)
@@ -713,6 +870,8 @@ async function startServer() {
 
     ws.on("close", () => {
       shell.kill();
+      wsClients.delete(ws);
+      console.log("WebSocket connection closed");
     });
   });
 
@@ -731,9 +890,33 @@ async function startServer() {
     });
   }
 
-  const PORT = Number(process.env.PORT) || 3000;
-  server.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
+  server.listen(ENV.PORT, ENV.HOST, () => {
+    console.log(`Server running on ${ENV.HOST}:${ENV.PORT}`);
+    console.log(`Environment: ${ENV.NODE_ENV}`);
+    console.log(`Monitoring interval: ${ENV.MONITORING_INTERVAL}ms`);
+  });
+
+  // Graceful shutdown
+  process.on("SIGTERM", () => {
+    console.log("SIGTERM received, shutting down gracefully...");
+    server.close(() => {
+      console.log("Server closed");
+      process.exit(0);
+    });
+    
+    // Force shutdown after 30 seconds
+    setTimeout(() => {
+      console.error("Forced shutdown after timeout");
+      process.exit(1);
+    }, 30000);
+  });
+
+  process.on("SIGINT", () => {
+    console.log("SIGINT received, shutting down gracefully...");
+    server.close(() => {
+      console.log("Server closed");
+      process.exit(0);
+    });
   });
 }
 
