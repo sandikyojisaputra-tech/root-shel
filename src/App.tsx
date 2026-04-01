@@ -2194,7 +2194,10 @@ export default function App() {
   };
 
   const executeStartupCommand = async () => {
-    if (!config.autoStartCommand || !config.startupCommand) return;
+    if (!config.startupCommand) {
+      setStartupExecutionLog([`[${new Date().toLocaleTimeString()}] Error: No startup command configured`]);
+      return;
+    }
     
     setIsExecutingStartup(true);
     setStartupExecutionLog([`[${new Date().toLocaleTimeString()}] Executing startup command...`]);
@@ -3058,3 +3061,5 @@ export default function App() {
     </div>
   );
 }
+
+export default App;

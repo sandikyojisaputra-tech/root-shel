@@ -35,4 +35,4 @@ ENV HOST=0.0.0.0
 ENV PORT=3000
 
 # Start the server
-CMD ["node", "server.ts"]
+CMD ["npm", "start"]

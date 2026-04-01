@@ -6,7 +6,7 @@
   },
   "deploy": {
     "numReplicas": 1,
-    "startCommand": "node server.ts",
+    "startCommand": "npm start",
     "restartPolicyMaxRetries": 3,
     "restartPolicyWindowSeconds": 60,
     "healthchecks": {
