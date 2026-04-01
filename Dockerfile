@@ -4,14 +4,13 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies required for terminal emulation and file operations
+# Install system dependencies (df is excluded as it is built-in)
 RUN apk add --no-cache \
     python3 \
     bash \
     curl \
     git \
     build-base \
-    df \
     && rm -rf /var/cache/apk/*
 
 # Copy package files
@@ -26,7 +25,7 @@ COPY . .
 # Build the frontend
 RUN npm run build
 
-# Expose port (Railway will set PORT env var)
+# Expose port
 EXPOSE 3000
 
 # Set environment variables
