@@ -1,10 +1,11 @@
-# Use Node.js 20 LTS as base image
+# 1. Gunakan Node.js 20 LTS Alpine (Ringan)
 FROM node:20-alpine
 
-# Set working directory
+# 2. Set direktori kerja
 WORKDIR /app
 
-# Install system dependencies (df is excluded as it is built-in)
+# 3. Install dependensi sistem 
+# (df dihapus karena sudah bawaan, build-base untuk compile library)
 RUN apk add --no-cache \
     python3 \
     bash \
@@ -13,25 +14,27 @@ RUN apk add --no-cache \
     build-base \
     && rm -rf /var/cache/apk/*
 
-# Copy package files
+# 4. Copy file package
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# 5. Install dependensi proyek + tsx secara eksplisit
+# (tsx ditambahkan di sini agar Node.js bisa baca file .ts)
+RUN npm install && npm install tsx
 
-# Copy source code
+# 6. Copy seluruh source code
 COPY . .
 
-# Build the frontend
+# 7. Jalankan build Vite (Ini akan memvalidasi index.css kamu)
 RUN npm run build
 
-# Expose port
-EXPOSE 3000
-
-# Set environment variables
+# 8. Konfigurasi Environment
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# Start the server
-CMD ["node", "server.ts"]
+# 9. Ekspos Port untuk Railway
+EXPOSE 3000
+
+# 10. Perintah Start (Solusi untuk ERR_UNKNOWN_FILE_EXTENSION)
+# Kita panggil tsx yang ada di node_modules untuk menjalankan server.ts
+CMD ["npx", "tsx", "server.ts"]
