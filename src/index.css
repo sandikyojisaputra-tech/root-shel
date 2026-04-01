@@ -21,6 +21,7 @@
 }
 
 @layer utilities {
+  /* Standard CSS Utilities */
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -42,236 +43,212 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(63, 63, 70, 0.8);
   }
-  
-  /* Glass effect for modals and cards */
-  .glass {
+
+  /* Tailwind v4 Custom Utilities using @utility */
+  @utility glass {
     @apply bg-zinc-900/40 backdrop-blur-md border border-zinc-800/50;
   }
-  
-  /* Smooth transitions */
-  .transition-smooth {
+
+  @utility transition-smooth {
     @apply transition-all duration-300 ease-out;
   }
-  
-  /* Status indicators */
-  .status-pulse {
+
+  @utility status-pulse {
     @apply animate-pulse;
   }
-  
-  .status-online {
+
+  @utility status-online {
     @apply bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)];
   }
-  
-  .status-offline {
+
+  @utility status-offline {
     @apply bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)];
   }
-  
-  .status-starting {
+
+  @utility status-starting {
     @apply bg-yellow-500 animate-bounce shadow-[0_0_8px_rgba(245,158,11,0.5)];
   }
-  
-  /* Sidebar active state */
-  .sidebar-active {
+
+  @utility sidebar-active {
     @apply bg-blue-600 text-white shadow-lg shadow-blue-900/20;
   }
-  
-  .sidebar-inactive {
+
+  @utility sidebar-inactive {
     @apply text-zinc-500 hover:text-white hover:bg-zinc-800/50;
   }
-  
-  /* Card styles for consistent look */
-  .card-dark {
+
+  @utility card-dark {
     @apply bg-[#1b1d23] border border-zinc-800/50 rounded-xl shadow-sm;
   }
-  
-  .card-glass {
+
+  @utility card-glass {
     @apply bg-zinc-900/40 backdrop-blur-md border border-zinc-800/50 rounded-lg;
   }
-  
-  /* Stat card styling */
-  .stat-card {
+
+  @utility stat-card {
     @apply card-dark p-4 sm:p-5 flex items-center space-x-4;
   }
-  
-  /* Button styles */
-  .btn-primary {
+
+  @utility btn-primary {
     @apply px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium;
   }
-  
-  .btn-secondary {
+
+  @utility btn-secondary {
     @apply px-4 py-2 bg-zinc-800/50 text-zinc-300 rounded-lg hover:bg-zinc-800 transition-colors font-medium;
   }
-  
-  .btn-icon {
+
+  @utility btn-icon {
     @apply p-2 text-zinc-400 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-all;
   }
-  
-  /* Section header */
-  .section-header {
+
+  @utility section-header {
     @apply flex items-center space-x-3 mb-6;
   }
-  
-  .section-title {
+
+  @utility section-title {
     @apply text-2xl font-bold text-white;
   }
-  
-  .section-subtitle {
+
+  @utility section-subtitle {
     @apply text-sm text-zinc-400;
   }
-  
-  /* Terminal styling */
-  .terminal-container {
+
+  @utility terminal-container {
     @apply bg-[#0a0b0e] border border-zinc-800/50 rounded-xl overflow-hidden shadow-2xl flex flex-col;
   }
-  
-  .terminal-header {
+
+  @utility terminal-header {
     @apply px-4 py-3 bg-[#101116] border-b border-zinc-800/50 flex items-center justify-between;
   }
-  
-  /* Grid responsive */
-  .grid-responsive {
+
+  @utility grid-responsive {
     @apply grid grid-cols-1 lg:grid-cols-3 gap-6;
   }
-  
-  /* Text utilities */
-  .text-label {
+
+  @utility text-label {
     @apply text-[8px] sm:text-[10px] text-zinc-500 uppercase tracking-widest font-bold;
   }
-  
-  .text-value {
+
+  @utility text-value {
     @apply text-sm sm:text-xl font-mono text-white;
   }
-  
-  /* Enhanced interactive elements */
-  .interactive-btn {
+
+  @utility interactive-btn {
     @apply px-3 py-2 rounded-lg font-medium transition-all duration-200 active:scale-95;
   }
-  
-  .interactive-btn-primary {
+
+  @utility interactive-btn-primary {
     @apply interactive-btn bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-900/20;
   }
-  
-  .interactive-btn-danger {
+
+  @utility interactive-btn-danger {
     @apply interactive-btn bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-900/20;
   }
-  
-  .interactive-btn-success {
+
+  @utility interactive-btn-success {
     @apply interactive-btn bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-900/20;
   }
-  
-  /* Input styling */
-  .input-field {
+
+  @utility input-field {
     @apply px-3 py-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all;
   }
-  
-  /* Badge styling */
-  .badge {
+
+  @utility badge {
     @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
   }
-  
-  .badge-primary {
+
+  @utility badge-primary {
     @apply badge bg-blue-500/10 text-blue-400 border border-blue-500/20;
   }
-  
-  .badge-success {
+
+  @utility badge-success {
     @apply badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20;
   }
-  
-  .badge-warning {
+
+  @utility badge-warning {
     @apply badge bg-yellow-500/10 text-yellow-400 border border-yellow-500/20;
   }
-  
-  .badge-danger {
+
+  @utility badge-danger {
     @apply badge bg-red-500/10 text-red-400 border border-red-500/20;
   }
-  
-  /* Table styling */
-  .table-base {
+
+  @utility table-base {
     @apply w-full text-sm text-left text-zinc-300;
   }
-  
-  .table-header {
+
+  @utility table-header {
     @apply text-xs font-semibold text-zinc-400 uppercase tracking-wider bg-zinc-900/50 border-b border-zinc-800/50;
   }
-  
-  .table-row {
+
+  @utility table-row {
     @apply border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors;
   }
-  
-  .table-cell {
+
+  @utility table-cell {
     @apply px-4 py-3;
   }
-  
-  /* Loading states */
-  .shimmer {
+
+  @utility shimmer {
     @apply bg-gradient-to-r from-zinc-800 via-zinc-700 to-zinc-800 bg-[length:200%_100%] animate-pulse;
   }
-  
-  .skeleton {
+
+  @utility skeleton {
     @apply shimmer rounded;
   }
-  
-  /* Modal and overlay */
-  .modal-backdrop {
+
+  @utility modal-backdrop {
     @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-40;
   }
-  
-  .modal-content {
+
+  @utility modal-content {
     @apply relative z-50 rounded-xl border border-zinc-800/50 bg-zinc-950 shadow-2xl;
   }
-  
-  /* Notification styles */
-  .notification {
+
+  @utility notification {
     @apply flex items-center px-4 py-3 rounded-lg border;
   }
-  
-  .notification-success {
+
+  @utility notification-success {
     @apply notification bg-emerald-500/10 border-emerald-500/30 text-emerald-300;
   }
-  
-  .notification-error {
+
+  @utility notification-error {
     @apply notification bg-red-500/10 border-red-500/30 text-red-300;
   }
-  
-  .notification-warning {
+
+  @utility notification-warning {
     @apply notification bg-yellow-500/10 border-yellow-500/30 text-yellow-300;
   }
-  
-  .notification-info {
+
+  @utility notification-info {
     @apply notification bg-blue-500/10 border-blue-500/30 text-blue-300;
   }
-  
-  /* Hover effects */
-  .hover-lift {
+
+  @utility hover-lift {
     @apply transition-all duration-200 hover:-translate-y-1 hover:shadow-lg;
   }
-  
-  .hover-glow {
+
+  @utility hover-glow {
     @apply transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/50;
   }
-  
-  /* Loading spinner */
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-  
-  .spinner {
+
+  @utility spinner {
     @apply border-2 border-zinc-700 border-t-blue-500 rounded-full animate-spin;
   }
-  
-  /* Fade in animation */
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  .fade-in {
+
+  @utility fade-in {
     animation: fadeIn 0.3s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
